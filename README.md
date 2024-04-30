@@ -41,3 +41,5 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/deploym
 `npx shadcn-ui add dropdown-menu`
 
 `npm install lucide-react`
+
+`npm install @tanstack/react-query`
