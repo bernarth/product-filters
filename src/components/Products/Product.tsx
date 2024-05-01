@@ -10,6 +10,7 @@ const Product = ({ product }: {product: ProductType}) => {
           alt="Product Image"
           height="400"
           width="400"
+          priority={true}
           className="h-full w-full object-cover object-center" />
       </div>
       <div className="mt-4 flex justify-between">

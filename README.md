@@ -44,4 +44,8 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/deploym
 
 `npm install @tanstack/react-query`
 
+`npx shadcn-ui add accordion`
+
+`npm install zod`
+
 1:03:25
