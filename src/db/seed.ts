@@ -1,4 +1,4 @@
-import { Product } from "@/types/Product";
+import { Product } from "@prisma/client";
 
 const getRandomPrice = () => {
   const PRICES = [9.99, 19.99, 29.99, 39.99, 49.99];

@@ -1,7 +1,12 @@
 "use client"
 
+import Product from "@/components/Products/Product";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { Product as ProductType } from "@prisma/client";
+//import { Product } from "@prisma/client";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { ChevronDown, Filter } from "lucide-react";
 import { useState } from "react";
 
@@ -26,7 +31,23 @@ export default function Home() {
     sort: "none"
   });
 
-  console.log(filter);
+  const { data: products } = useQuery({
+    queryKey: ["products"],
+    queryFn: async () => {
+      // <Product[]>
+      const { data } = await axios.post(
+        '/api/products', {
+          filter: {
+            sort: filter.sort
+          }
+        }
+      );
+
+      return data
+    }
+  });
+
+  console.log(products);
 
   return (
     <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -66,6 +87,22 @@ export default function Home() {
           </button>
         </div>
       </div>
+
+      <section className="pb-24 pt-6">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-10 lg:grid-cols-4">
+          {/* filters */}
+          <div>filters</div>
+          
+          {/* product grid */}
+          <ul className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+            {products?.map((product: ProductType) => (
+              <li key={product.id}>
+                <Product product={product!}/>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
     </main>
   );
 }
