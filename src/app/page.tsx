@@ -1,17 +1,19 @@
 "use client"
 
+import EmptyState from "@/components/Products/EmptyState";
 import Product from "@/components/Products/Product";
 import ProductSkeleton from "@/components/Products/ProductSkeleton";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { AVAILABLE_COLORS, AVAILABLE_SIZES, ProductState } from "@/lib/validators/product-validator";
 import { Product as ProductType } from "@prisma/client";
-//import { Product } from "@prisma/client";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { ChevronDown, Filter } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import debounce from "lodash.debounce"
 
 const SORT_OPTIONS = [
   {
@@ -48,7 +50,18 @@ const SIZE_FILTERS = {
     { value: "M", label: "M" },
     { value: "L", label: "L" }
   ] 
-} as const
+} as const;
+
+const PRICE_FILTERS = {
+  id: "price",
+  name: "Price",
+  options: [
+    { value: [0, 100], label: "Any price" },
+    { value: [0, 20], label: "Under 20$" }, // TODO: here we should use the formatter helper
+    { value: [0, 40], label: "Under 40$" }
+    // custom define in JSX
+  ]
+} as const;
 
 const SUBCATEGORIES = [
   { name: "T-Shirts", selected: true, href: "#" },
@@ -67,16 +80,17 @@ export default function Home() {
     sort: "none"
   });
 
-  console.log(filter.color);
-
-  const { data: products } = useQuery({
+  const { data: products, refetch } = useQuery({
     queryKey: ["products"],
     queryFn: async () => {
       // <Product[]>
-      const { data } = await axios.post(
+      const { data } = await axios.post<ProductType[]>(
         '/api/products', {
           filter: {
-            sort: filter.sort
+            sort: filter.sort,
+            color: filter.color,
+            price: filter.price.range,
+            size: filter.size
           }
         }
       );
@@ -84,6 +98,10 @@ export default function Home() {
       return data
     }
   });
+
+  const onSubmit = () => refetch();
+  const debounceSubmit = debounce(onSubmit, 1000);
+  const debounceSubmitCallBack = useCallback(debounceSubmit, []);
 
   const applyArrayFilter = ({
     category, value
@@ -104,7 +122,12 @@ export default function Home() {
         [category]: [...prev[category], value]
       }));
     }
+
+    debounceSubmitCallBack();
   }
+
+  const minPrice = Math.min(filter.price.range[0], filter.price.range[1]);
+  const maxPrice = Math.max(filter.price.range[0], filter.price.range[1]);
 
   return (
     <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -128,11 +151,13 @@ export default function Home() {
                     "text-gray-500": option.value !== filter.sort
                   })}
                   onClick={() => { 
-                  setFilter((prev) => ({
-                    ...prev,
-                    sort: option.value
-                  }))
-                }}>
+                    setFilter((prev) => ({
+                      ...prev,
+                      sort: option.value
+                    }))
+                    debounceSubmitCallBack();
+                  }}
+                >
                   {option.name}
                 </button>
               ))}
@@ -213,13 +238,109 @@ export default function Home() {
                   </ul>
                 </AccordionContent>
               </AccordionItem>
+
+              {/* Price Filter */}
+              <AccordionItem value="price">
+                <AccordionTrigger className="py-3 text-sm text-gray-400 hover:text-gray-500">
+                  <span className="font-medium text-gray-900">Price</span>
+                </AccordionTrigger>
+                <AccordionContent className="pt-6 animate-none">
+                  <ul className="space-y-4">
+                    {PRICE_FILTERS.options.map((option, optionIdx) => (
+                      <li key={option.label} className="flex items-center">
+                        <input
+                          type="radio"
+                          id={`price-${optionIdx}`}
+                          onChange={() => {
+                            setFilter((prev) => ({
+                              ...prev,
+                              price: {
+                                isCustom: false,
+                                range: [...option.value]
+                              }
+                            }))
+                          }}
+                          checked={
+                            !filter.price.isCustom && 
+                            filter.price.range[0] === option.value[0] && 
+                            filter.price.range[1] === option.value[1]
+                          }
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        <label htmlFor={`price-${optionIdx}`} className="ml-3 text-sm text-gray-600">
+                          {option.label}
+                        </label>
+                      </li>
+                    ))}
+                    <li className="flex justify-center flex-col gap-2">
+                      <div>
+                        <input
+                          type="radio"
+                          id={`price-${PRICE_FILTERS.options.length}`}
+                          onChange={() => {
+                            setFilter((prev) => ({
+                              ...prev,
+                              price: {
+                                isCustom: true,
+                                range: [0, 100]
+                              }
+                            }))
+                          }}
+                          checked={filter.price.isCustom}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        <label htmlFor={`price-${PRICE_FILTERS.options.length}`} className="ml-3 text-sm text-gray-600">
+                          Custom
+                        </label>
+                      </div>
+                      <div className="flex justify-between">
+                        <p className="font-medium">Price</p>
+                        <div>
+                          {filter.price.isCustom ?
+                           minPrice.toFixed(0) : 
+                           filter.price.range[0].toFixed(0)} $ -{' '}
+                          {filter.price.isCustom ? 
+                           maxPrice.toFixed(0) : 
+                           filter.price.range[1].toFixed(0)} $
+                        </div>
+                      </div>
+
+                      <Slider 
+                        className={cn({
+                          "opacity-50": !filter.price.isCustom
+                        })}
+                        disabled={!filter.price.isCustom}
+                        onValueChange={(range) => {
+                          const [newMin, newMax] = range;
+                          setFilter((prev) => ({
+                            ...prev,
+                            price: {
+                              isCustom: true,
+                              range: [newMin, newMax]
+                            }
+                          }))
+                          debounceSubmitCallBack();
+                        }}
+                        value={filter.price.isCustom 
+                          ? filter.price.range 
+                          : DEFAULT_CUSTOM_PRICE}
+                        min={DEFAULT_CUSTOM_PRICE[0]}
+                        defaultValue={DEFAULT_CUSTOM_PRICE}
+                        max={DEFAULT_CUSTOM_PRICE[1]}
+                        step={5}
+                      />
+
+                    </li>
+                  </ul>
+                </AccordionContent>
+              </AccordionItem>
             </Accordion>
           </div>
           
           {/* product grid */}
           <ul className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
-            {products 
-              ? products.map((product: ProductType) => (
+            {products && products.length === 0 ? (
+              <EmptyState /> 
+            ) : products ?
+              products.map((product: ProductType) => (
                   <li key={product.id}>
                     <Product product={product!}/>
                   </li>

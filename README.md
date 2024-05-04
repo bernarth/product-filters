@@ -48,4 +48,10 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/deploym
 
 `npm install zod`
 
-1:03:25
+`npx shadcn-ui add slider`
+
+`npm install lodash.debounce`
+
+`npm install -D @types/lodash.debounce`
+
+1:52:50
